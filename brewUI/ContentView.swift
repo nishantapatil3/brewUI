@@ -77,6 +77,7 @@ struct ContentView: View {
     private var mainDashboard: some View {
         VStack(alignment: .leading, spacing: 16) {
             topBar
+            statusLine
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -115,7 +116,7 @@ struct ContentView: View {
             Spacer()
 
             HStack(spacing: 10) {
-                iconButton(systemName: "arrow.down.circle", helpText: "Update Homebrew metadata") {
+                iconButton(systemName: "arrow.down.circle", helpText: "Update metadata and upgrade outdated packages") {
                     Task { await viewModel.runUpdate() }
                 }
 
@@ -133,10 +134,23 @@ struct ContentView: View {
     private var outdatedCard: some View {
         statusCard(icon: "arrow.down.circle", title: "There are \(viewModel.outdatedCount) outdated packages", subtitle: "Outdated packages") {
             Button("Update") {
-                Task { await viewModel.runUpgrade() }
+                Task { await viewModel.runUpdate() }
             }
             .buttonStyle(.bordered)
             .disabled(viewModel.isBusy)
+        }
+    }
+
+    private var statusLine: some View {
+        HStack {
+            if viewModel.isBusy {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            Text(viewModel.errorMessage.isEmpty ? viewModel.status : viewModel.errorMessage)
+                .font(.system(size: 12))
+                .foregroundColor(viewModel.errorMessage.isEmpty ? .secondary : .red)
+                .lineLimit(1)
         }
     }
 

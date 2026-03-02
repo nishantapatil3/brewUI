@@ -133,9 +133,13 @@ final class BrewViewModel: ObservableObject {
     }
 
     func runUpdate() async {
-        await runBusyTask("Running brew update...") {
-            lastOutput = try await service.updateMetadata()
-            status = "Updated Homebrew metadata."
+        await runBusyTask("Running brew update and upgrade...") {
+            let updateOutput = try await service.updateMetadata()
+            let upgradeOutput = try await service.upgradeOutdated()
+            lastOutput = [updateOutput, upgradeOutput]
+                .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                .joined(separator: "\n\n")
+            status = "Update and upgrade complete."
             try await refreshDashboardDataOnly()
         }
     }
