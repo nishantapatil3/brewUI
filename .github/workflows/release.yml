@@ -1,0 +1,111 @@
+name: Build and Release brewUI
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -switch /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Detect build settings
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CONTAINER_TYPE=""
+          CONTAINER_PATH=""
+
+          if compgen -G "*.xcworkspace" > /dev/null; then
+            CONTAINER_TYPE="workspace"
+            CONTAINER_PATH="$(ls -1 *.xcworkspace | head -n1)"
+          elif compgen -G "*.xcodeproj" > /dev/null; then
+            CONTAINER_TYPE="project"
+            CONTAINER_PATH="$(ls -1 *.xcodeproj | head -n1)"
+          else
+            echo "No .xcworkspace or .xcodeproj found at repo root."
+            echo "Commit your Xcode project/workspace before running release workflow."
+            exit 1
+          fi
+
+          SCHEME_INPUT="${SCHEME:-}"
+          if [[ -n "${SCHEME_INPUT}" ]]; then
+            DETECTED_SCHEME="${SCHEME_INPUT}"
+          else
+            DETECTED_SCHEME="$(find . -path "*/xcshareddata/xcschemes/*.xcscheme" -maxdepth 5 | sed 's|.*/||' | sed 's|\.xcscheme$||' | head -n1)"
+          fi
+
+          if [[ -z "${DETECTED_SCHEME}" ]]; then
+            echo "Could not auto-detect a shared scheme."
+            echo "Set env SCHEME in workflow or commit a shared scheme under xcshareddata/xcschemes."
+            exit 1
+          fi
+
+          echo "container_type=${CONTAINER_TYPE}" >> "$GITHUB_ENV"
+          echo "container_path=${CONTAINER_PATH}" >> "$GITHUB_ENV"
+          echo "scheme=${DETECTED_SCHEME}" >> "$GITHUB_ENV"
+
+          echo "Detected ${CONTAINER_TYPE}: ${CONTAINER_PATH}"
+          echo "Detected scheme: ${DETECTED_SCHEME}"
+
+      - name: Build app
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUILD_PATH="$RUNNER_TEMP/DerivedData"
+          DESTINATION="generic/platform=macOS"
+
+          if [[ "${container_type}" == "workspace" ]]; then
+            xcodebuild \
+              -workspace "${container_path}" \
+              -scheme "${scheme}" \
+              -configuration Release \
+              -destination "${DESTINATION}" \
+              -derivedDataPath "${BUILD_PATH}" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              build
+          else
+            xcodebuild \
+              -project "${container_path}" \
+              -scheme "${scheme}" \
+              -configuration Release \
+              -destination "${DESTINATION}" \
+              -derivedDataPath "${BUILD_PATH}" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              build
+          fi
+
+          APP_PATH="$(find "${BUILD_PATH}/Build/Products/Release" -maxdepth 1 -name "*.app" | head -n1)"
+          if [[ -z "${APP_PATH}" ]]; then
+            echo "No .app artifact found in Release products."
+            exit 1
+          fi
+
+          cp -R "${APP_PATH}" brewUI.app
+          ditto -c -k --sequesterRsrc --keepParent brewUI.app brewUI.app.zip
+
+      - name: Generate SHA256
+        run: shasum -a 256 brewUI.app.zip | tee brewUI.app.zip.sha256.txt
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            brewUI.app.zip
+            brewUI.app.zip.sha256.txt
