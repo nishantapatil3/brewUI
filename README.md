@@ -1,6 +1,17 @@
 # brewUI
 
+[![Build and Release](https://github.com/nishantapatil3/brewUI/actions/workflows/release.yml/badge.svg)](https://github.com/nishantapatil3/brewUI/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/nishantapatil3/brewUI?display_name=tag)](https://github.com/nishantapatil3/brewUI/releases)
+[![Homebrew](https://img.shields.io/badge/Homebrew-required-orange)](https://brew.sh)
+
 Lightweight macOS native Swift UI for Homebrew package management.
+
+## Links
+
+- GitHub: [nishantapatil3/brewUI](https://github.com/nishantapatil3/brewUI)
+- Releases: [Latest release assets](https://github.com/nishantapatil3/brewUI/releases/latest)
+- Homebrew: [brew.sh](https://brew.sh)
+- Homebrew Cask Docs: [docs.brew.sh/Cask-Cookbook](https://docs.brew.sh/Cask-Cookbook)
 
 ## Requirements
 
@@ -13,6 +24,12 @@ For a custom tap, users can install with:
 
 ```bash
 brew install --cask nishantapatil3/tap/brewui
+```
+
+If needed first:
+
+```bash
+brew tap nishantapatil3/tap
 ```
 
 If users run only:
