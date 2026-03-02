@@ -49,6 +49,8 @@ Security note: `--no-quarantine` bypasses Gatekeeper checks. Use this only if yo
 6. Users install via:
    - `brew install --cask nishantapatil3/tap/brewui`
 
+Release workflow can also auto-sync the tap cask when `TAP_REPO_TOKEN` is configured.
+
 ## Notarization Setup (GitHub Actions)
 
 To publish trusted macOS builds (no Gatekeeper malware warning), set these GitHub Actions repository secrets:
@@ -59,6 +61,7 @@ To publish trusted macOS builds (no Gatekeeper malware warning), set these GitHu
 - `APPLE_APP_SPECIFIC_PASSWORD`: App-specific password for the Apple ID
 - `APPLE_TEAM_ID`: Apple Developer Team ID
 - `KEYCHAIN_PASSWORD`: Random password used for temporary CI keychain
+- `TAP_REPO_TOKEN`: GitHub token with write access to `nishantapatil3/homebrew-tap` (for auto cask sync)
 
 If these are not set, the workflow still builds and releases, but the app is unsigned/unnotarized.
 

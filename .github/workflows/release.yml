@@ -19,6 +19,7 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      TAP_REPO_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -188,12 +189,67 @@ jobs:
       - name: Generate SHA256
         run: shasum -a 256 brewUI.app.zip | tee brewUI.app.zip.sha256.txt
 
+      - name: Extract release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_NAME="${GITHUB_REF_NAME}"
+          VERSION="${TAG_NAME#v}"
+          SHA256="$(awk '{print $1}' brewUI.app.zip.sha256.txt)"
+          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG_NAME}/brewUI.app.zip"
+
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+          echo "release_url=${RELEASE_URL}" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release and upload assets
         uses: softprops/action-gh-release@v2
         with:
           files: |
             brewUI.app.zip
             brewUI.app.zip.sha256.txt
+
+      - name: Sync cask to tap repo
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${TAP_REPO_TOKEN}" ]]; then
+            echo "TAP_REPO_TOKEN is not set. Skipping tap sync."
+            exit 0
+          fi
+
+          WORK_DIR="$(mktemp -d)"
+          git clone "https://x-access-token:${TAP_REPO_TOKEN}@github.com/nishantapatil3/homebrew-tap.git" "${WORK_DIR}/tap"
+
+          cat > "${WORK_DIR}/tap/Casks/brewui.rb" <<EOF
+          cask "brewui" do
+            version "${{ steps.release_meta.outputs.version }}"
+            sha256 "${{ steps.release_meta.outputs.sha256 }}"
+
+            url "${{ steps.release_meta.outputs.release_url }}"
+            name "brewUI"
+            desc "Lightweight native Swift UI for Homebrew package management"
+            homepage "https://github.com/nishantapatil3/brewUI"
+
+            app "brewUI.app"
+          end
+          EOF
+
+          cd "${WORK_DIR}/tap"
+          if git diff --quiet -- Casks/brewui.rb; then
+            echo "Tap cask already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/brewui.rb
+          git commit -m "Bump brewui cask to v${{ steps.release_meta.outputs.version }}"
+          git push origin main
 
       - name: Cleanup keychain
         if: always() && env.should_notarize == 'true'
