@@ -4,6 +4,8 @@
 [![Latest Release](https://img.shields.io/github/v/release/nishantapatil3/brewUI?display_name=tag)](https://github.com/nishantapatil3/brewUI/releases)
 [![Homebrew](https://img.shields.io/badge/Homebrew-required-orange)](https://brew.sh)
 
+![brewUI screenshot](assets/brewui-screenshot.png)
+
 Lightweight macOS native Swift UI for Homebrew package management.
 
 ## Links
