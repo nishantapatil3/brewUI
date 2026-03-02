@@ -29,14 +29,17 @@ jobs:
           CONTAINER_TYPE=""
           CONTAINER_PATH=""
 
-          if compgen -G "*.xcworkspace" > /dev/null; then
+          ROOT_WORKSPACE="$(find . -maxdepth 1 -type d -name "*.xcworkspace" | head -n1 | sed 's|^\./||')"
+          ROOT_PROJECT="$(find . -maxdepth 1 -type d -name "*.xcodeproj" | head -n1 | sed 's|^\./||')"
+
+          if [[ -n "${ROOT_WORKSPACE}" ]]; then
             CONTAINER_TYPE="workspace"
-            CONTAINER_PATH="$(ls -1 *.xcworkspace | head -n1)"
-          elif compgen -G "*.xcodeproj" > /dev/null; then
+            CONTAINER_PATH="${ROOT_WORKSPACE}"
+          elif [[ -n "${ROOT_PROJECT}" ]]; then
             CONTAINER_TYPE="project"
-            CONTAINER_PATH="$(ls -1 *.xcodeproj | head -n1)"
+            CONTAINER_PATH="${ROOT_PROJECT}"
           else
-            echo "No .xcworkspace or .xcodeproj found at repo root."
+            echo "No .xcworkspace or .xcodeproj directory found at repo root."
             echo "Commit your Xcode project/workspace before running release workflow."
             exit 1
           fi
