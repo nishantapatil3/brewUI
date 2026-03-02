@@ -38,13 +38,8 @@ Release URL pattern after workflow runs:
 
 ## 4. Update cask using script
 
-```bash
-cd /Users/nishantpatil/src/brewUI
-./scripts/update-cask.sh \
-  0.1.0 \
-  https://github.com/nishantapatil3/brewUI/releases/download/v0.1.0/brewUI.app.zip \
-  /absolute/path/to/brewUI.app.zip
-```
+No local cask update is needed in this repo.
+Release workflow updates `nishantapatil3/homebrew-tap/Casks/brewui.rb` when `TAP_REPO_TOKEN` is configured.
 
 ## 5. Create tap repo (one-time)
 
@@ -57,11 +52,8 @@ Then:
 ```bash
 git clone https://github.com/nishantapatil3/homebrew-tap.git
 cd homebrew-tap
-mkdir -p Casks
-cp /Users/nishantpatil/src/brewUI/Casks/brewui.rb Casks/brewui.rb
-git add Casks/brewui.rb
-git commit -m "Add brewui cask v0.1.0"
-git push
+# cask is managed directly in this tap repo:
+# Casks/brewui.rb
 ```
 
 ## 6. User install command
