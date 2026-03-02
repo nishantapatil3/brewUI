@@ -40,6 +40,16 @@ brew install --cask brewui
 
 that works only after the cask is accepted into the official Homebrew cask repository.
 
+## Install Without Notarization
+
+If the app is not notarized yet, users can still install it by disabling quarantine during install:
+
+```bash
+brew install --cask --no-quarantine nishantapatil3/tap/brewui
+```
+
+Security note: `--no-quarantine` bypasses Gatekeeper checks. Use this only if you trust the source.
+
 ## Publish Flow
 
 1. Push this project to:
