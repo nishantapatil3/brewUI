@@ -26,20 +26,6 @@ For a custom tap, users can install with:
 brew install --cask nishantapatil3/tap/brewui
 ```
 
-If needed first:
-
-```bash
-brew tap nishantapatil3/tap
-```
-
-If users run only:
-
-```bash
-brew install --cask brewui
-```
-
-that works only after the cask is accepted into the official Homebrew cask repository.
-
 ## Install Without Notarization
 
 If the app is not notarized yet, users can still install it by disabling quarantine during install:
