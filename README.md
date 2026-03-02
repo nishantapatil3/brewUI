@@ -12,6 +12,7 @@ Lightweight macOS native Swift UI for Homebrew package management.
 - Releases: [Latest release assets](https://github.com/nishantapatil3/brewUI/releases/latest)
 - Homebrew: [brew.sh](https://brew.sh)
 - Homebrew Cask Docs: [docs.brew.sh/Cask-Cookbook](https://docs.brew.sh/Cask-Cookbook)
+- Tap Cask Source of Truth: [nishantapatil3/homebrew-tap/Casks/brewui.rb](https://github.com/nishantapatil3/homebrew-tap/blob/main/Casks/brewui.rb)
 
 ## Requirements
 
@@ -25,6 +26,8 @@ For a custom tap, users can install with:
 ```bash
 brew install --cask nishantapatil3/tap/brewui
 ```
+
+Note: the live cask version used by Homebrew is maintained in the tap repo (`homebrew-tap/Casks/brewui.rb`).
 
 ## Install Without Notarization
 
