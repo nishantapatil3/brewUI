@@ -53,6 +53,19 @@ that works only after the cask is accepted into the official Homebrew cask repos
 6. Users install via:
    - `brew install --cask nishantapatil3/tap/brewui`
 
+## Notarization Setup (GitHub Actions)
+
+To publish trusted macOS builds (no Gatekeeper malware warning), set these GitHub Actions repository secrets:
+
+- `APPLE_DEVELOPER_ID_APP_CERT_P12`: Base64-encoded `.p12` for your **Developer ID Application** certificate
+- `APPLE_DEVELOPER_ID_APP_CERT_PASSWORD`: Password used when exporting the `.p12`
+- `APPLE_ID`: Apple ID email for notarization
+- `APPLE_APP_SPECIFIC_PASSWORD`: App-specific password for the Apple ID
+- `APPLE_TEAM_ID`: Apple Developer Team ID
+- `KEYCHAIN_PASSWORD`: Random password used for temporary CI keychain
+
+If these are not set, the workflow still builds and releases, but the app is unsigned/unnotarized.
+
 ## Quick Commands
 
 ```bash

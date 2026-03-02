@@ -12,6 +12,13 @@ permissions:
 jobs:
   build-and-release:
     runs-on: macos-latest
+    env:
+      APPLE_DEVELOPER_ID_APP_CERT_P12: ${{ secrets.APPLE_DEVELOPER_ID_APP_CERT_P12 }}
+      APPLE_DEVELOPER_ID_APP_CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_APP_CERT_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,6 +71,41 @@ jobs:
           echo "Detected ${CONTAINER_TYPE}: ${CONTAINER_PATH}"
           echo "Detected scheme: ${DETECTED_SCHEME}"
 
+      - name: Decide signing/notarization mode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${APPLE_DEVELOPER_ID_APP_CERT_P12}" && -n "${APPLE_DEVELOPER_ID_APP_CERT_PASSWORD}" && -n "${APPLE_ID}" && -n "${APPLE_APP_SPECIFIC_PASSWORD}" && -n "${APPLE_TEAM_ID}" && -n "${KEYCHAIN_PASSWORD}" ]]; then
+            echo "should_notarize=true" >> "$GITHUB_ENV"
+            echo "Notarization mode enabled."
+          else
+            echo "should_notarize=false" >> "$GITHUB_ENV"
+            echo "Notarization mode disabled (one or more secrets missing). Building unsigned release artifact."
+          fi
+
+      - name: Import Developer ID certificate
+        if: env.should_notarize == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CERT_PATH="$RUNNER_TEMP/developer_id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+
+          echo "$APPLE_DEVELOPER_ID_APP_CERT_P12" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$APPLE_DEVELOPER_ID_APP_CERT_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -p codesigning "$KEYCHAIN_PATH"
+
+          echo "build_keychain_path=${KEYCHAIN_PATH}" >> "$GITHUB_ENV"
+
       - name: Build app
         shell: bash
         run: |
@@ -73,25 +115,53 @@ jobs:
           DESTINATION="generic/platform=macOS"
 
           if [[ "${container_type}" == "workspace" ]]; then
-            xcodebuild \
-              -workspace "${container_path}" \
-              -scheme "${scheme}" \
-              -configuration Release \
-              -destination "${DESTINATION}" \
-              -derivedDataPath "${BUILD_PATH}" \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGNING_REQUIRED=NO \
-              build
+            if [[ "${should_notarize}" == "true" ]]; then
+              xcodebuild \
+                -workspace "${container_path}" \
+                -scheme "${scheme}" \
+                -configuration Release \
+                -destination "${DESTINATION}" \
+                -derivedDataPath "${BUILD_PATH}" \
+                OTHER_CODE_SIGN_FLAGS="--keychain ${build_keychain_path}" \
+                CODE_SIGN_STYLE=Manual \
+                CODE_SIGN_IDENTITY="Developer ID Application" \
+                DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
+                build
+            else
+              xcodebuild \
+                -workspace "${container_path}" \
+                -scheme "${scheme}" \
+                -configuration Release \
+                -destination "${DESTINATION}" \
+                -derivedDataPath "${BUILD_PATH}" \
+                CODE_SIGNING_ALLOWED=NO \
+                CODE_SIGNING_REQUIRED=NO \
+                build
+            fi
           else
-            xcodebuild \
-              -project "${container_path}" \
-              -scheme "${scheme}" \
-              -configuration Release \
-              -destination "${DESTINATION}" \
-              -derivedDataPath "${BUILD_PATH}" \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGNING_REQUIRED=NO \
-              build
+            if [[ "${should_notarize}" == "true" ]]; then
+              xcodebuild \
+                -project "${container_path}" \
+                -scheme "${scheme}" \
+                -configuration Release \
+                -destination "${DESTINATION}" \
+                -derivedDataPath "${BUILD_PATH}" \
+                OTHER_CODE_SIGN_FLAGS="--keychain ${build_keychain_path}" \
+                CODE_SIGN_STYLE=Manual \
+                CODE_SIGN_IDENTITY="Developer ID Application" \
+                DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
+                build
+            else
+              xcodebuild \
+                -project "${container_path}" \
+                -scheme "${scheme}" \
+                -configuration Release \
+                -destination "${DESTINATION}" \
+                -derivedDataPath "${BUILD_PATH}" \
+                CODE_SIGNING_ALLOWED=NO \
+                CODE_SIGNING_REQUIRED=NO \
+                build
+            fi
           fi
 
           APP_PATH="$(find "${BUILD_PATH}/Build/Products/Release" -maxdepth 1 -name "*.app" | head -n1)"
@@ -101,6 +171,18 @@ jobs:
           fi
 
           cp -R "${APP_PATH}" brewUI.app
+
+          if [[ "${should_notarize}" == "true" ]]; then
+            ditto -c -k --sequesterRsrc --keepParent brewUI.app brewUI.app.zip
+            xcrun notarytool submit brewUI.app.zip \
+              --apple-id "${APPLE_ID}" \
+              --team-id "${APPLE_TEAM_ID}" \
+              --password "${APPLE_APP_SPECIFIC_PASSWORD}" \
+              --wait
+            xcrun stapler staple brewUI.app
+            rm -f brewUI.app.zip
+          fi
+
           ditto -c -k --sequesterRsrc --keepParent brewUI.app brewUI.app.zip
 
       - name: Generate SHA256
@@ -112,3 +194,12 @@ jobs:
           files: |
             brewUI.app.zip
             brewUI.app.zip.sha256.txt
+
+      - name: Cleanup keychain
+        if: always() && env.should_notarize == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${build_keychain_path:-}" ]]; then
+            security delete-keychain "${build_keychain_path}" || true
+          fi
