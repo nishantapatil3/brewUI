@@ -93,15 +93,23 @@ struct ContentView: View {
 
     private var topBar: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Cork")
-                    .font(.system(size: 30, weight: .bold))
-                Text("\(viewModel.totalInstalledCount) packages installed")
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(.secondary)
-                Text("Made for developers")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.tertiary)
+            HStack(alignment: .top, spacing: 12) {
+                Image("BrewLogo")
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("brewUI")
+                        .font(.system(size: 30, weight: .bold))
+                    Text("\(viewModel.totalInstalledCount) packages installed")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(.secondary)
+                    Text("Made for developers")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             Spacer()
